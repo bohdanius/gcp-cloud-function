@@ -29,9 +29,9 @@ pipeline {
     }
     
     post {
-        always {
+       // always {
             // Cleanup steps if necessary
-        }
+       // }
         success {
             echo 'CI pipeline ran successfully!'
         }
