@@ -1,21 +1,42 @@
 pipeline {
     agent any
-
+    
+    
     stages {
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo 'Building..'
+                git branch: 'main', url: 'git@github.com:bohdanius/gcp-cloud-function.git'
             }
         }
-        stage('Test') {
+        
+        stage('Install dependencies') {
             steps {
-                echo 'Testing..'
+                sh 'pip install -r requirements.txt'
             }
         }
+        
+        stage('Run tests') {
+            steps {
+                sh 'pytest tests'
+            }
+        }
+        
         stage('Deploy') {
             steps {
-                echo 'Deploying....'
+                sh 'gcloud functions deploy dummy-cloud-function --runtime python39 --trigger-http'
             }
+        }
+    }
+    
+    post {
+        always {
+            // Cleanup steps if necessary
+        }
+        success {
+            echo 'CI pipeline ran successfully!'
+        }
+        failure {
+            echo 'CI pipeline failed!'
         }
     }
 }
