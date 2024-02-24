@@ -5,7 +5,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'git@github.com:bohdanius/gcp-cloud-function.git'
+                git branch: 'main', url: 'https://github.com/bohdanius/gcp-cloud-function.git'
             }
         }
         
