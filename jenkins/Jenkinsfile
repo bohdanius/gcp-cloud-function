@@ -5,27 +5,80 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                echo "BUILD_DEPLOY = ${BUILD_DEPLOY}"
                 git branch: 'master', url: 'https://github.com/bohdanius/gcp-cloud-function.git'
+                withPythonEnv('python3') {
+                    sh 'python3 --version'
+                }
             }
         }
         
-        stage('Install dependencies') {
+        stage('Compile') {
             steps {
-                sh 'pip3 install -r requirements.txt'
+                withPythonEnv('python3') {
+                    sh 'python3 clean.py'
+                    sh 'pip3 install -r requirements.txt'
+                    sh 'python3 -m compileall'
+                }
             }
         }
         
-        stage('Run tests') {
+        stage('Test') {
             steps {
-                sh 'pytest tests'
+                withPythonEnv('python3') {
+                    sh 'pip3 install -r requirements-test.txt'
+                    sh 'pytest'
+                }
+            }
+        }
+        
+        stage('Package') {
+            steps {
+                withPythonEnv('python3') {
+                    sh 'python3 setup.py sdist --formats=zip'
+                    sh 'mkdir -p dist/com.example/0.0.1-SNAPSHOT'
+                    sh 'cp dist/cloud-function-0.0.1.zip dist/com.example/0.0.1-SNAPSHOT/cloud-function-0.0.1-SNAPSHOT.zip'
+                    
+                }
+            }
+        }
+        
+         stage('Upload') {
+            steps {
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus2',
+                    protocol: 'http',
+                    nexusUrl: 'localhost:8081/nexus',
+                    groupId: 'com.example',
+                    version: '0.0.1-SNAPSHOT',
+                    repository: 'snapshots',
+                    credentialsId: '9a2048df-43cc-4607-b034-557058979426',
+                    artifacts: [
+                        [artifactId: 'cloud-function',
+                         file: 'dist/com.example/0.0.1-SNAPSHOT/cloud-function-0.0.1-SNAPSHOT.zip',
+                         type: 'zip']
+                    ]
+                 )
+                }
+         }
+         
+        stage('Verify Deployment') {
+            steps {
+                sh 'cd terraform && /usr/local/bin/terraform init'
+                sh 'cd terraform && /usr/local/bin/terraform plan'
             }
         }
         
         stage('Deploy') {
+            when { 
+                environment name: 'BUILD_DEPLOY', value: 'true' 
+            }
             steps {
-                sh 'gcloud functions deploy dummy-cloud-function --runtime python39 --trigger-http'
+                sh 'cd terraform && /usr/local/bin/terraform apply -auto-approve'
             }
         }
+  
+          
     }
     
     post {
