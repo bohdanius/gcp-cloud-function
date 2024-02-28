@@ -1,0 +1,4 @@
+global-exclude *
+include README.md
+include main.py
+include requirements.txt
