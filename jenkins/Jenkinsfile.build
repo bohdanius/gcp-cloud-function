@@ -48,7 +48,7 @@ pipeline {
                 nexusArtifactUploader(
                     nexusVersion: 'nexus2',
                     protocol: 'http',
-                    nexusUrl: 'localhost:8081/nexus',
+                    nexusUrl: env.NEXUS_URL,
                     groupId: 'com.example',
                     version: '0.0.1-SNAPSHOT',
                     repository: 'snapshots',
