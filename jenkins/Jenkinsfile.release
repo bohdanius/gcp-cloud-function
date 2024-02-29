@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'version', description: 'Semantic version', defaultValue: '1.0.0', trim: true)
+    }
+
+    stages {
+        stage('Retrieve Snapshot') {
+            steps {
+                script {
+                    def nexusUrl = 'http://' + env.NEXUS_URL
+                    def groupId = "com.example"
+                    def artifactId = "cloud-function"
+                    def snapshotVersion = "0.0.1-SNAPSHOT"
+                    def releaseVersion = params.version
+                    def packaging = "zip"
+                    def repoId = "releases"
+                    def repoUrl = "${nexusUrl}/content/repositories"
+                    def snapshotRepo = "${nexusUrl}/content/repositories/snapshots"
+                    def releaseRepo = "${nexusUrl}/content/repositories/${repoId}"
+                    
+                    // Download snapshot artifact
+                    sh "mvn maven-dependency-plugin:get -DremoteRepositories=${snapshotRepo} -DgroupId=${groupId} -DartifactId=${artifactId} -Dversion=${snapshotVersion} -Dpackaging=${packaging} -Dtransitive=false"
+                    
+                    // Copy artifact to current directory
+                    sh "mvn dependency:copy -Dartifact='${groupId}:${artifactId}:${snapshotVersion}:${packaging}' -DoutputDirectory=. -DartifactId.destFileName=${artifactId}-${releaseVersion}.${packaging}"
+                    
+                    // Deploy artifact to Nexus
+                    withCredentials([usernamePassword(credentialsId: '9a2048df-43cc-4607-b034-557058979426', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        sh "mvn deploy:deploy-file --settings=jenkins/settings.xml -DgroupId=${groupId} -DartifactId=${artifactId} -Dversion=${releaseVersion} -Dpackaging=${packaging} -DrepositoryId=${repoId} -Durl=${releaseRepo} -Dfile=${artifactId}-${releaseVersion}.${packaging} -Drepo.login=${USERNAME} -Drepo.pwd=${PASSWORD}"
+                    } 
+                }
+            }
+        }
+    }
+}
